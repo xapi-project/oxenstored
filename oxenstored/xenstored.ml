@@ -681,9 +681,9 @@ let () =
       in
       if peaceful_mw <> [] then 0. else until_next_activity
     in
-    let inset, outset = Connections.select ~only_if:is_peaceful cons in
+    Connections.refresh_poll_status ~only_if:is_peaceful cons ;
     let rset, wset, _ =
-      try Poll.poll_select (spec_fds @ inset) outset [] timeout
+      try Poll.poll_select cons.poll_status timeout
       with Unix.Unix_error (Unix.EINTR, _, _) -> ([], [], [])
     in
     let sfds, cfds = List.partition (fun fd -> List.mem fd spec_fds) rset in

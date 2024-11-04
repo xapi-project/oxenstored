@@ -20,7 +20,9 @@ module Xeneventchn = Eventchn
 let debug fmt = Logging.debug "connections" fmt
 
 type t = {
-    anonymous: (Unix.file_descr, Connection.t) Hashtbl.t
+    anonymous: (Unix.file_descr, Connection.t * int) Hashtbl.t
+        (* (fd -> Connection.t, index) where index maps to the poll_status array *)
+  ; mutable poll_status: (Unix.file_descr * Poll.event) array
   ; domains: (int, Connection.t) Hashtbl.t
   ; ports: (Xeneventchn.t, Connection.t) Hashtbl.t
   ; mutable watches: Connection.watch list Trie.t
@@ -30,6 +32,7 @@ type t = {
 let create () =
   {
     anonymous= Hashtbl.create 37
+  ; poll_status= [||]
   ; domains= Hashtbl.create 37
   ; ports= Hashtbl.create 37
   ; watches= Trie.create ()
@@ -43,11 +46,15 @@ let get_capacity () =
   ; maxwatchevents= !Define.maxwatchevents
   }
 
+let default_poll_status () = (Unix.stdin, Poll.init_event ())
+
 let add_anonymous cons fd =
   let capacity = get_capacity () in
   let xbcon = Xenbus.Xb.open_fd fd ~capacity in
   let con = Connection.create xbcon None in
-  Hashtbl.add cons.anonymous (Xenbus.Xb.get_fd xbcon) con
+  Hashtbl.replace cons.anonymous (Xenbus.Xb.get_fd xbcon)
+    (con, Array.length cons.poll_status) ;
+  cons.poll_status <- Array.append cons.poll_status [|default_poll_status ()|]
 
 let add_domain cons dom =
   let capacity = get_capacity () in
@@ -57,23 +64,29 @@ let add_domain cons dom =
     )
   in
   let con = Connection.create xbcon (Some dom) in
-  Hashtbl.add cons.domains (Domain.get_id dom) con ;
-  Hashtbl.add cons.ports (Domain.get_local_port dom) con
+  Hashtbl.replace cons.domains (Domain.get_id dom) con ;
+  Hashtbl.replace cons.ports (Domain.get_local_port dom) con
 
-let select ?(only_if = fun _ -> true) cons =
-  Hashtbl.fold
-    (fun _ con (ins, outs) ->
-      if only_if con then
-        let fd = Connection.get_fd con in
-        let in_fds = if Connection.can_input con then fd :: ins else ins in
-        let out_fds = if Connection.has_output con then fd :: outs else outs in
-        (in_fds, out_fds)
-      else
-        (ins, outs)
+let refresh_poll_status ?(only_if = fun _ -> true) cons =
+  Hashtbl.iter
+    (fun _ (con, index) ->
+      let only = only_if con in
+      let fd = Connection.get_fd con in
+      let open Poll in
+      let event =
+        {
+          read= only && Connection.can_input con
+        ; write= only && Connection.has_output con
+        ; except= false
+        }
+      in
+      cons.poll_status.(index) <- (fd, event)
     )
-    cons.anonymous ([], [])
+    cons.anonymous
 
-let find cons = Hashtbl.find cons.anonymous
+let find cons fd =
+  let c, _ = Hashtbl.find cons.anonymous fd in
+  c
 
 let find_domain cons = Hashtbl.find cons.domains
 
@@ -97,8 +110,19 @@ let del_watches cons con =
 let del_anonymous cons con =
   try
     Hashtbl.remove cons.anonymous (Connection.get_fd con) ;
-    del_watches cons con ;
-    Connection.close con
+    (* Reallocate the poll_status array, update indices pointing to it *)
+    cons.poll_status <-
+      Array.make (Hashtbl.length cons.anonymous) (default_poll_status ()) ;
+    let _ =
+      Hashtbl.fold
+        (fun key (con, _) i ->
+          Hashtbl.replace cons.anonymous key (con, i) ;
+          i + 1
+        )
+        cons.anonymous 0
+    in
+
+    del_watches cons con ; Connection.close con
   with exn -> debug "del anonymous %s" (Printexc.to_string exn)
 
 let del_domain cons id =
@@ -116,7 +140,8 @@ let del_domain cons id =
 
 let iter_domains cons fct = Hashtbl.iter (fun _ c -> fct c) cons.domains
 
-let iter_anonymous cons fct = Hashtbl.iter (fun _ c -> fct c) cons.anonymous
+let iter_anonymous cons fct =
+  Hashtbl.iter (fun _ (c, _) -> fct c) cons.anonymous
 
 let iter cons fct = iter_domains cons fct ; iter_anonymous cons fct
 
@@ -227,7 +252,7 @@ let stats cons =
 let debug cons =
   let anonymous =
     Hashtbl.fold
-      (fun _ con accu -> Connection.debug con :: accu)
+      (fun _ (con, _) accu -> Connection.debug con :: accu)
       cons.anonymous []
   in
   let domains =
@@ -258,6 +283,7 @@ let debug_watchevents cons con =
 
 let filter ~f cons =
   let fold _ v acc = if f v then v :: acc else acc in
-  [] |> Hashtbl.fold fold cons.anonymous |> Hashtbl.fold fold cons.domains
+  let fold_a _ (v, _) acc = if f v then v :: acc else acc in
+  [] |> Hashtbl.fold fold_a cons.anonymous |> Hashtbl.fold fold cons.domains
 
 let prevents_quit cons = filter ~f:Connection.prevents_live_update cons
