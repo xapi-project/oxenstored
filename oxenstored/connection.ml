@@ -103,6 +103,25 @@ and t = {
     xb: Xenbus.Xb.t
   ; dom: Domain.t option
   ; transactions: (int, Transaction.t) Hashtbl.t
+  ; directory_cache:
+      (Store.Path.t, Store.Node.t * int64 * string * float) Hashtbl.t option
+        (* Used for partial_directory calls, maps
+           path -> (node, generation_count, children, timestamp)
+
+           Generation count is used by the client to determine if the node has
+           changed inbetween partial directory calls (OXenstored itself uses
+           physical comparison between nodes, this exists for compatibility
+           with the original protocol implemented by CXenstored). Documentation
+           specifies that "<gencnt> being the same for multiple reads guarantees
+           the node hasn't changed", so we fake a per-node generation count
+           (CXenstored uses a global generation count that gets modified on every
+           node write, incremented on transaction creation instead)
+
+           This needs to be per-connection rather than per-transaction because
+           clients might not necessarily create a transaction for all partial
+           directory calls, we should keep the cache inbetween the transactions
+           as well.
+        *)
   ; mutable next_tid: int
   ; watches: (string, watch list) Hashtbl.t
   ; mutable nb_watches: int
@@ -205,11 +224,22 @@ let create xbcon dom =
     | Some _ ->
         0
   in
+  let directory_cache =
+    match dom with
+    | Some dom ->
+        if Domain.get_id dom = 0 then
+          Some (Hashtbl.create 8)
+        else
+          None
+    | None ->
+        Some (Hashtbl.create 8)
+  in
   let con =
     {
       xb= xbcon
     ; dom
     ; transactions= Hashtbl.create 5
+    ; directory_cache
     ; next_tid= initial_next_tid
     ; watches= Hashtbl.create 8
     ; nb_watches= 0

@@ -36,8 +36,10 @@ type operation =
   | Resume
   | Set_target
   | Reset_watches
+  | Directory_part
   | Invalid
 
+(* See xs_wire.h for the required order *)
 let operation_c_mapping =
   [|
      Debug
@@ -62,6 +64,7 @@ let operation_c_mapping =
    ; Set_target
    ; Invalid
    ; Reset_watches
+   ; Directory_part
   |]
 
 let size = Array.length operation_c_mapping
@@ -126,5 +129,7 @@ let to_string ty =
       "SET_TARGET"
   | Reset_watches ->
       "RESET_WATCHES"
+  | Directory_part ->
+      "DIRECTORY_PART"
   | Invalid ->
       "INVALID"

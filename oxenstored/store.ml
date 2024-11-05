@@ -361,19 +361,19 @@ let read store perm path =
     Path.apply store.root path do_read
 
 let ls store perm path =
-  let children =
+  let node, children =
     if path = [] then (
       Node.check_perm store.root perm Perms.READ ;
-      Node.get_children store.root
+      (store.root, Node.get_children store.root)
     ) else
       let do_ls node name =
         let cnode = Node.find node name in
         Node.check_perm cnode perm Perms.READ ;
-        cnode.Node.children
+        (cnode, cnode.Node.children)
       in
       Path.apply store.root path do_ls
   in
-  SymbolMap.fold (fun k _ accu -> Symbol.to_string k :: accu) children []
+  (node, SymbolMap.fold (fun k _ accu -> Symbol.to_string k :: accu) children [])
 
 let getperms store perm path =
   if path = [] then (
@@ -516,7 +516,7 @@ type ops = {
   ; mkdir: Path.t -> unit
   ; rm: Path.t -> unit
   ; setperms: Path.t -> Perms.Node.t -> unit
-  ; ls: Path.t -> string list
+  ; ls: Path.t -> Node.t * string list
   ; read: Path.t -> string
   ; getperms: Path.t -> Perms.Node.t
   ; path_exists: Path.t -> bool

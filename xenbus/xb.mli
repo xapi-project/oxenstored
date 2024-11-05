@@ -21,6 +21,7 @@ module Op : sig
     | Resume
     | Set_target
     | Reset_watches
+    | Directory_part
     | Invalid
 
   val operation_c_mapping : operation array
