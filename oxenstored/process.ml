@@ -336,7 +336,7 @@ let do_debug con t _domains cons data =
 let do_directory con t _domains _cons data =
   let path = split_one_path data con in
   let entries = Transaction.ls t (Connection.get_perm con) path in
-  if List.length entries > 0 then
+  if entries <> [] then
     Utils.join_by_null entries ^ "\000"
   else
     ""

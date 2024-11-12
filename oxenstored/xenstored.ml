@@ -687,10 +687,10 @@ let () =
       with Unix.Unix_error (Unix.EINTR, _, _) -> ([], [], [])
     in
     let sfds, cfds = List.partition (fun fd -> List.mem fd spec_fds) rset in
-    if List.length sfds > 0 then
+    if sfds <> [] then
       process_special_fds sfds ;
 
-    if List.length cfds > 0 || List.length wset > 0 then
+    if cfds <> [] || wset <> [] then
       process_connection_fds store cons domains cfds wset ;
     ( if timeout <> 0. then
         let now = Unix.gettimeofday () in

@@ -337,7 +337,7 @@ let del_watch con path token =
   let ws = Hashtbl.find con.watches apath in
   let w = List.find (fun w -> w.token = token) ws in
   let filtered = Utils.list_remove w ws in
-  if List.length filtered > 0 then
+  if filtered <> [] then
     Hashtbl.replace con.watches apath filtered
   else
     Hashtbl.remove con.watches apath ;

@@ -263,7 +263,7 @@ let ls_partial t perm path directory_cache =
     | None ->
         let node, entries = Store.ls t.store perm path in
         let r =
-          if List.length entries > 0 then
+          if entries <> [] then
             Utils.join_by_null entries ^ "\000"
           else
             ""
@@ -297,7 +297,7 @@ let getperms t perm path =
   set_read_lowpath t path ; r
 
 let commit ~con t =
-  let has_write_ops = List.length t.paths > 0 in
+  let has_write_ops = t.paths <> [] in
   let has_coalesced = ref false in
   let has_commited =
     match t.ty with
