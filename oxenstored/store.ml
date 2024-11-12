@@ -142,9 +142,7 @@ module Path = struct
     || c = '-'
     || c = '@'
 
-  let name_is_valid name =
-    name <> ""
-    && String.fold_left (fun accu c -> accu && char_is_valid c) true name
+  let name_is_valid name = name <> "" && String.for_all char_is_valid name
 
   let is_valid path = List.for_all name_is_valid path
 
