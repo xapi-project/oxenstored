@@ -276,8 +276,8 @@ let set_target con target_domid =
 
 let is_backend_mmap con = Xenbus.Xb.is_mmap con.xb
 
-let packet_of con tid rid ty data =
-  if String.length data > xenstore_payload_max && is_backend_mmap con then
+let packet_of _con tid rid ty data =
+  if String.length data > xenstore_payload_max then
     Xenbus.Xb.Packet.create tid rid Xenbus.Xb.Op.Error "E2BIG\000"
   else
     Xenbus.Xb.Packet.create tid rid ty data
