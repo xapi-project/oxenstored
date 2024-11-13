@@ -280,7 +280,7 @@ let get_children_watches con path =
   let path = path ^ "/" in
   List.concat
     (Hashtbl.fold
-       (fun p w l -> if String.startswith path p then w :: l else l)
+       (fun p w l -> if String.starts_with ~prefix:path p then w :: l else l)
        con.watches []
     )
 

@@ -82,18 +82,6 @@ module String = struct
       let a = String.sub s 0 i
       and b = String.sub s (i + 1) (String.length s - i - 1) in
       a :: split ~limit:nlimit c b
-
-  let fold_left f accu string =
-    let accu = ref accu in
-    for i = 0 to length string - 1 do
-      accu := f !accu string.[i]
-    done ;
-    !accu
-
-  (** True if string 'x' starts with prefix 'prefix' *)
-  let startswith prefix x =
-    let x_l = String.length x and prefix_l = String.length prefix in
-    prefix_l <= x_l && String.sub x 0 prefix_l = prefix
 end
 
 module Unixext = struct
