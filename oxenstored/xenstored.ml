@@ -28,21 +28,23 @@ let debug fmt = Logging.debug "xenstored" fmt
 
 let info fmt = Logging.info "xenstored" fmt
 
+let spec_fds = ref []
+
 (*------------ event klass processors --------------*)
 let process_connection_fds store cons domains rset wset =
   let try_fct fct c =
     try fct store cons domains c with
     | Unix.Unix_error (err, "write", _) ->
-        Connections.del_anonymous cons c ;
+        Connections.del_anonymous cons c !spec_fds ;
         error "closing socket connection: write error: %s"
           (Unix.error_message err)
     | Unix.Unix_error (err, "read", _) ->
-        Connections.del_anonymous cons c ;
+        Connections.del_anonymous cons c !spec_fds ;
         if err <> Unix.ECONNRESET then
           error "closing socket connection: read error: %s"
             (Unix.error_message err)
     | Xenbus.Xb.End_of_file ->
-        Connections.del_anonymous cons c ;
+        Connections.del_anonymous cons c !spec_fds ;
         debug "closing socket connection"
   in
   let process_fdset_with fds fct =
@@ -524,10 +526,16 @@ let () =
       Logging.init_access_log post_rotate
   ) ;
 
-  let spec_fds =
+  spec_fds :=
     (match rw_sock with None -> [] | Some x -> [x])
-    @ if cf.domain_init then [Event.fd eventchn] else []
-  in
+    @ if cf.domain_init then [Event.fd eventchn] else [] ;
+  (* Always positioned at the start of cons.poll_status, maintained during
+     reallocations *)
+  cons.poll_status <-
+    Array.append cons.poll_status
+      (Array.of_list
+         (List.map (fun fd -> (fd, Connections.spec_poll_status ())) !spec_fds)
+      ) ;
 
   let process_special_fds rset =
     let accept_connection fd =
@@ -681,12 +689,12 @@ let () =
       in
       if peaceful_mw <> [] then 0. else until_next_activity
     in
-    Connections.refresh_poll_status ~only_if:is_peaceful cons ;
+    Connections.refresh_poll_status ~only_if:is_peaceful cons !spec_fds ;
     let rset, wset, _ =
       try Poll.poll_select cons.poll_status timeout
       with Unix.Unix_error (Unix.EINTR, _, _) -> ([], [], [])
     in
-    let sfds, cfds = List.partition (fun fd -> List.mem fd spec_fds) rset in
+    let sfds, cfds = List.partition (fun fd -> List.mem fd !spec_fds) rset in
     if List.length sfds > 0 then
       process_special_fds sfds ;
 

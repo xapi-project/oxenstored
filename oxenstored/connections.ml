@@ -48,6 +48,8 @@ let get_capacity () =
 
 let default_poll_status () = (Unix.stdin, Poll.init_event ())
 
+let spec_poll_status () = Poll.{read= true; write= false; except= false}
+
 let add_anonymous cons fd =
   let capacity = get_capacity () in
   let xbcon = Xenbus.Xb.open_fd fd ~capacity in
@@ -67,7 +69,14 @@ let add_domain cons dom =
   Hashtbl.replace cons.domains (Domain.get_id dom) con ;
   Hashtbl.replace cons.ports (Domain.get_local_port dom) con
 
-let refresh_poll_status ?(only_if = fun _ -> true) cons =
+let refresh_poll_status ?(only_if = fun _ -> true) cons spec_fds =
+  (* special fds are always read=true, but get overwritten by select_stubs, so we
+     need to reset the event we are polling for *)
+  let _ =
+    List.iteri
+      (fun index fd -> cons.poll_status.(index) <- (fd, spec_poll_status ()))
+      spec_fds
+  in
   Hashtbl.iter
     (fun _ (con, index) ->
       let only = only_if con in
@@ -107,19 +116,32 @@ let del_watches cons con =
     |> Connection.Watch.Set.filter @@ fun w -> Connection.get_con w != con
     )
 
-let del_anonymous cons con =
+let del_anonymous cons con spec_fds =
   try
     Hashtbl.remove cons.anonymous (Connection.get_fd con) ;
     (* Reallocate the poll_status array, update indices pointing to it *)
     cons.poll_status <-
-      Array.make (Hashtbl.length cons.anonymous) (default_poll_status ()) ;
+      Array.make
+        (Hashtbl.length cons.anonymous + List.length spec_fds)
+        (default_poll_status ()) ;
+
+    (* Keep the special fds at the beginning *)
+    let i =
+      List.fold_left
+        (fun index fd ->
+          cons.poll_status.(index) <- (fd, spec_poll_status ()) ;
+          index + 1
+        )
+        0 spec_fds
+    in
+
     let _ =
       Hashtbl.fold
         (fun key (con, _) i ->
           Hashtbl.replace cons.anonymous key (con, i) ;
           i + 1
         )
-        cons.anonymous 0
+        cons.anonymous i
     in
 
     del_watches cons con ; Connection.close con
