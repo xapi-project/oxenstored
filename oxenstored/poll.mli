@@ -12,10 +12,11 @@
  * GNU Lesser General Public License for more details.
  *)
 
+type event = {mutable read: bool; mutable write: bool; mutable except: bool}
+
+val init_event : unit -> event
+
 val poll_select :
-     Unix.file_descr list
-  -> Unix.file_descr list
-  -> Unix.file_descr list
+     (Unix.file_descr * event) array
   -> float
   -> Unix.file_descr list * Unix.file_descr list * Unix.file_descr list
-(** Same interface and semantics as [Unix.select], implemented using poll(3). *)

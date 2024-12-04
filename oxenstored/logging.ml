@@ -25,7 +25,7 @@ let log_destination_of_string s =
   let prefix = "syslog:" in
   let len_prefix = String.length prefix in
   let len = String.length s in
-  if String.startswith prefix s then
+  if String.starts_with ~prefix s then
     Syslog
       (Syslog.facility_of_string (String.sub s len_prefix (len - len_prefix)))
   else
@@ -433,7 +433,7 @@ let live_update () =
 let xb_answer ~tid ~con ~ty data =
   let print, level =
     match ty with
-    | Xenbus.Xb.Op.Error when String.startswith "ENOENT" data ->
+    | Xenbus.Xb.Op.Error when String.starts_with ~prefix:"ENOENT" data ->
         (!access_log_read_ops, Warn)
     | Xenbus.Xb.Op.Error ->
         (true, Warn)
