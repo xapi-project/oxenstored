@@ -362,6 +362,7 @@ let do_directory_part con t _domains _cons data =
 
   let generation, children =
     Transaction.ls_partial t (Connection.get_perm con) path directory_cache
+      con.Connection.directory_cache_gen_count
   in
 
   let generation_s = Printf.sprintf "%Ld\000" generation in

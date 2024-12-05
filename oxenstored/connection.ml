@@ -103,6 +103,9 @@ and t = {
     xb: Xenbus.Xb.t
   ; dom: Domain.t option
   ; transactions: (int, Transaction.t) Hashtbl.t
+  ; directory_cache_gen_count: int64 ref
+        (* Used to provide connection-unique generation counts in case a cache entry
+           was evicted and TODO *)
   ; directory_cache:
       (Store.Path.t, Store.Node.t * int64 * string * float) Hashtbl.t option
         (* Used for partial_directory calls, maps
@@ -239,6 +242,10 @@ let create xbcon dom =
       xb= xbcon
     ; dom
     ; transactions= Hashtbl.create 5
+    ; directory_cache_gen_count=
+        ref 1L
+        (* Start the generation count with 1, since 0 is a special
+           NULL value in CXenstored *)
     ; directory_cache
     ; next_tid= initial_next_tid
     ; watches= Hashtbl.create 8

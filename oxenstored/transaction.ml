@@ -222,7 +222,7 @@ let ls t perm path =
   let _node, r = Store.ls t.store perm path in
   set_read_lowpath t path ; r
 
-let ls_partial t perm path directory_cache =
+let ls_partial t perm path directory_cache max_gen_count =
   let configurable_cache_size = 8 in
   let check_hashtable_bounds ht =
     if Hashtbl.length ht >= configurable_cache_size then
@@ -237,6 +237,12 @@ let ls_partial t perm path directory_cache =
           ht (None, infinity)
       in
       Hashtbl.remove ht (Option.get key)
+  in
+
+  let inc_gen_count gen_cnt =
+    let r = !gen_cnt in
+    gen_cnt := Int64.add !gen_cnt 1L ;
+    r
   in
 
   (* Return the cached buffer if the node hasn't changed; otherwise
@@ -268,17 +274,7 @@ let ls_partial t perm path directory_cache =
           else
             ""
         in
-        (* We need to increment the generation count if the cache existed
-           but needed to be refreshed *)
-        let generation_count =
-          match cache_opt with
-          | Some (_, generation_count, _, _) ->
-              Int64.add generation_count 1L
-          | None ->
-              1L
-          (* Start the generation count with 1, since 0 is a special
-             NULL value in CXenstored *)
-        in
+        let generation_count = inc_gen_count max_gen_count in
         (* Check the bounds, evict something from the hashtable
            to keep its size bounded *)
         check_hashtable_bounds directory_cache ;
