@@ -336,10 +336,68 @@ let do_debug con t _domains cons data =
 let do_directory con t _domains _cons data =
   let path = split_one_path data con in
   let entries = Transaction.ls t (Connection.get_perm con) path in
-  if List.length entries > 0 then
+  if entries <> [] then
     Utils.join_by_null entries ^ "\000"
   else
     ""
+
+let do_directory_part con t _domains _cons data =
+  (* Call only available to Dom0 *)
+  if not (Connection.is_dom0 con) then
+    raise Domain_not_match ;
+
+  let directory_cache = Option.get con.Connection.directory_cache in
+
+  let split_two_args data con =
+    let args = split (Some 3) '\000' data in
+    match args with
+    | path :: offset :: _ ->
+        (Store.Path.create path (Connection.get_path con), int_of_string offset)
+    | _ ->
+        raise Invalid_Cmd_Args
+  in
+
+  (* First arg is node name. Second arg is childlist offset. *)
+  let path, offset = split_two_args data con in
+
+  let generation, children =
+    Transaction.ls_partial t (Connection.get_perm con) path directory_cache
+      con.Connection.directory_cache_gen_count
+  in
+
+  let generation_s = Printf.sprintf "%Ld\000" generation in
+  let genlen = String.length generation_s in
+  let children_length = String.length children in
+
+  (* Offset behind list: just return a list with an empty string. *)
+  if offset >= children_length then
+    generation_s ^ "\000"
+  else
+    let buffer_length = ref 0 in
+    let maxlen = Connection.xenstore_payload_max - genlen - 1 in
+    let child_length = ref 0 in
+    let i = ref offset in
+    let cache_length = String.length children in
+    while !buffer_length + !child_length < maxlen && !i < cache_length do
+      child_length := !child_length + 1 ;
+
+      if children.[!i] = '\000' then (
+        if !buffer_length + !child_length < maxlen then
+          buffer_length := !buffer_length + !child_length ;
+
+        child_length := 0
+      ) ;
+      i := !i + 1
+    done ;
+    let last_chunk = offset + !buffer_length = children_length in
+    let buffer =
+      Bytes.create (!buffer_length + genlen + if last_chunk then 1 else 0)
+    in
+    String.blit generation_s 0 buffer 0 genlen ;
+    String.blit children offset buffer genlen !buffer_length ;
+    if last_chunk then
+      Bytes.set buffer (!buffer_length + genlen) '\000' ;
+    Bytes.to_string buffer
 
 let do_read con t _domains _cons data =
   let path = split_one_path data con in
@@ -482,6 +540,8 @@ let function_of_type_simple_op ty =
       raise (Invalid_argument (Xenbus.Xb.Op.to_string ty))
   | Xenbus.Xb.Op.Directory ->
       reply_data do_directory
+  | Xenbus.Xb.Op.Directory_part ->
+      reply_data do_directory_part
   | Xenbus.Xb.Op.Read ->
       reply_data do_read
   | Xenbus.Xb.Op.Getperms ->
@@ -819,6 +879,7 @@ let retain_op_in_history ty =
       true
   | Xenbus.Xb.Op.Debug
   | Xenbus.Xb.Op.Directory
+  | Xenbus.Xb.Op.Directory_part
   | Xenbus.Xb.Op.Read
   | Xenbus.Xb.Op.Getperms
   | Xenbus.Xb.Op.Watch

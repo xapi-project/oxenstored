@@ -20,6 +20,7 @@ type operation =
   | Resume
   | Set_target
   | Reset_watches
+  | Directory_part
   | Invalid
 
 val operation_c_mapping : operation array

@@ -283,6 +283,8 @@ let string_of_access_type = function
         "debug    "
     | Xenbus.Xb.Op.Directory ->
         "directory"
+    | Xenbus.Xb.Op.Directory_part ->
+        "directory_partial"
     | Xenbus.Xb.Op.Read ->
         "read     "
     | Xenbus.Xb.Op.Getperms ->

@@ -219,8 +219,70 @@ let rm t perm path =
   add_wop t Xenbus.Xb.Op.Rm path
 
 let ls t perm path =
-  let r = Store.ls t.store perm path in
+  let _node, r = Store.ls t.store perm path in
   set_read_lowpath t path ; r
+
+let ls_partial t perm path directory_cache max_gen_count =
+  let configurable_cache_size = 8 in
+  let check_hashtable_bounds ht =
+    if Hashtbl.length ht >= configurable_cache_size then
+      let key, _min_timestamp =
+        Hashtbl.fold
+          (fun key (_, _, _, timestamp) (min_key, min_timestamp) ->
+            if timestamp < min_timestamp then
+              (Some key, timestamp)
+            else
+              (min_key, min_timestamp)
+          )
+          ht (None, infinity)
+      in
+      Hashtbl.remove ht (Option.get key)
+  in
+
+  let inc_gen_count gen_cnt =
+    let r = !gen_cnt in
+    gen_cnt := Int64.add !gen_cnt 1L ;
+    r
+  in
+
+  (* Return the cached buffer if the node hasn't changed; otherwise
+     create or refresh the cache *)
+  let ( let* ) = Option.bind in
+  let cache_opt = Hashtbl.find_opt directory_cache path in
+  let cache =
+    let* cached_node, gen_count, cache, _timestamp = cache_opt in
+
+    let* cur_node = Store.get_node t.store path in
+    (* Regenerate the cache entry if the underlying node changed *)
+    if cached_node == cur_node then
+      Some (cached_node, gen_count, cache)
+    else
+      None
+  in
+  let ret =
+    match cache with
+    | Some (cached_node, gen_count, cache) ->
+        (* Update the timestamp in the cache *)
+        Hashtbl.replace directory_cache path
+          (cached_node, gen_count, cache, Unix.gettimeofday ()) ;
+        (gen_count, cache)
+    | None ->
+        let node, entries = Store.ls t.store perm path in
+        let r =
+          if entries <> [] then
+            Utils.join_by_null entries ^ "\000"
+          else
+            ""
+        in
+        let generation_count = inc_gen_count max_gen_count in
+        (* Check the bounds, evict something from the hashtable
+           to keep its size bounded *)
+        check_hashtable_bounds directory_cache ;
+        Hashtbl.replace directory_cache path
+          (node, generation_count, r, Unix.gettimeofday ()) ;
+        (generation_count, r)
+  in
+  set_read_lowpath t path ; ret
 
 let read t perm path =
   let r = Store.read t.store perm path in
@@ -231,7 +293,7 @@ let getperms t perm path =
   set_read_lowpath t path ; r
 
 let commit ~con t =
-  let has_write_ops = List.length t.paths > 0 in
+  let has_write_ops = t.paths <> [] in
   let has_coalesced = ref false in
   let has_commited =
     match t.ty with

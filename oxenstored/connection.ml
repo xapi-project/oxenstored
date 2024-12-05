@@ -103,6 +103,28 @@ and t = {
     xb: Xenbus.Xb.t
   ; dom: Domain.t option
   ; transactions: (int, Transaction.t) Hashtbl.t
+  ; directory_cache_gen_count: int64 ref
+        (* Used to provide connection-unique generation counts in case a cache entry
+           was evicted and TODO *)
+  ; directory_cache:
+      (Store.Path.t, Store.Node.t * int64 * string * float) Hashtbl.t option
+        (* Used for partial_directory calls, maps
+           path -> (node, generation_count, children, timestamp)
+
+           Generation count is used by the client to determine if the node has
+           changed inbetween partial directory calls (OXenstored itself uses
+           physical comparison between nodes, this exists for compatibility
+           with the original protocol implemented by CXenstored). Documentation
+           specifies that "<gencnt> being the same for multiple reads guarantees
+           the node hasn't changed", so we fake a per-node generation count
+           (CXenstored uses a global generation count that gets modified on every
+           node write, incremented on transaction creation instead)
+
+           This needs to be per-connection rather than per-transaction because
+           clients might not necessarily create a transaction for all partial
+           directory calls, we should keep the cache inbetween the transactions
+           as well.
+        *)
   ; mutable next_tid: int
   ; watches: (string, watch list) Hashtbl.t
   ; mutable nb_watches: int
@@ -205,11 +227,26 @@ let create xbcon dom =
     | Some _ ->
         0
   in
+  let directory_cache =
+    match dom with
+    | Some dom ->
+        if Domain.get_id dom = 0 then
+          Some (Hashtbl.create 8)
+        else
+          None
+    | None ->
+        Some (Hashtbl.create 8)
+  in
   let con =
     {
       xb= xbcon
     ; dom
     ; transactions= Hashtbl.create 5
+    ; directory_cache_gen_count=
+        ref 1L
+        (* Start the generation count with 1, since 0 is a special
+           NULL value in CXenstored *)
+    ; directory_cache
     ; next_tid= initial_next_tid
     ; watches= Hashtbl.create 8
     ; nb_watches= 0
@@ -246,8 +283,8 @@ let set_target con target_domid =
 
 let is_backend_mmap con = Xenbus.Xb.is_mmap con.xb
 
-let packet_of con tid rid ty data =
-  if String.length data > xenstore_payload_max && is_backend_mmap con then
+let packet_of _con tid rid ty data =
+  if String.length data > xenstore_payload_max then
     Xenbus.Xb.Packet.create tid rid Xenbus.Xb.Op.Error "E2BIG\000"
   else
     Xenbus.Xb.Packet.create tid rid ty data
@@ -307,7 +344,7 @@ let del_watch con path token =
   let ws = Hashtbl.find con.watches apath in
   let w = List.find (fun w -> w.token = token) ws in
   let filtered = Utils.list_remove w ws in
-  if List.length filtered > 0 then
+  if filtered <> [] then
     Hashtbl.replace con.watches apath filtered
   else
     Hashtbl.remove con.watches apath ;
