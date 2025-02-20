@@ -30,19 +30,23 @@ let info fmt = Logging.info "xenstored" fmt
 
 (*------------ event klass processors --------------*)
 let process_connection_fds store cons domains rset wset spec_fds =
+  let should_resize = ref false in
   let try_fct fct c =
     try fct store cons domains c with
     | Unix.Unix_error (err, "write", _) ->
-        Connections.del_anonymous cons c spec_fds ;
+        Connections.del_anonymous cons c spec_fds ~resize:false ;
+        should_resize := true ;
         error "closing socket connection: write error: %s"
           (Unix.error_message err)
     | Unix.Unix_error (err, "read", _) ->
-        Connections.del_anonymous cons c spec_fds ;
+        Connections.del_anonymous cons c spec_fds ~resize:false ;
+        should_resize := true ;
         if err <> Unix.ECONNRESET then
           error "closing socket connection: read error: %s"
             (Unix.error_message err)
     | Xenbus.Xb.End_of_file ->
-        Connections.del_anonymous cons c spec_fds ;
+        Connections.del_anonymous cons c spec_fds ~resize:false ;
+        should_resize := true ;
         debug "closing socket connection"
   in
   let process_fdset_with fds fct =
@@ -53,7 +57,9 @@ let process_connection_fds store cons domains rset wset spec_fds =
       fds
   in
   process_fdset_with rset Process.do_input ;
-  process_fdset_with wset Process.do_output
+  process_fdset_with wset Process.do_output ;
+  if !should_resize then
+    Connections.resize_anonymous cons spec_fds
 
 let process_domains store cons domains =
   let do_io_domain domain =

@@ -85,7 +85,7 @@ let process_watch source t cons =
     Connections.fire_watches ?oldroot source root cons (snd op) recurse
   in
   List.iter (fun op -> do_op_watch op cons) ops ;
-  Connections.send_watchevents cons source
+  Connections.send_watchevents source
 
 let create_implicit_path t perm path =
   let dirname = Store.Path.get_parent path in
@@ -312,7 +312,7 @@ let do_debug con t _domains cons data =
             Printf.sprintf
               "xenbus: %s; overflow queue length: %d, can_input: %b, \
                has_more_input: %b, has_old_output: %b, has_new_output: %b, \
-               has_more_work: %b. pending: %s"
+               has_more_work: %b."
               (Xenbus.Xb.debug con.xb)
               (Connection.source_pending_watchevents con)
               (Connection.can_input con)
@@ -320,7 +320,6 @@ let do_debug con t _domains cons data =
               (Connection.has_old_output con)
               (Connection.has_new_output con)
               (Connection.has_more_work con)
-              (Connections.debug_watchevents cons con)
           in
           Some s
       | "mfn" :: domid :: _ ->

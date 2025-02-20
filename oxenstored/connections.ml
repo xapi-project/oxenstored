@@ -27,7 +27,6 @@ type t = {
   ; domains: (int, Connection.t) Hashtbl.t
   ; ports: (Xeneventchn.t, Connection.t) Hashtbl.t
   ; mutable watches: Connection.watch list Trie.t
-  ; mutable has_pending_watchevents: Connection.Watch.Set.t
 }
 
 let create () =
@@ -37,7 +36,6 @@ let create () =
   ; domains= Hashtbl.create 37
   ; ports= Hashtbl.create 37
   ; watches= Trie.create ()
-  ; has_pending_watchevents= Connection.Watch.Set.empty
   }
 
 let get_capacity () =
@@ -90,46 +88,53 @@ let del_watches_of_con con watches =
 let del_watches cons (con : Connection.t) =
   if con.nb_watches > 0 then (
     Connection.del_watches con ;
-    cons.watches <- Trie.map (del_watches_of_con con) cons.watches ;
-    cons.has_pending_watchevents <-
-      (cons.has_pending_watchevents
-      |> Connection.Watch.Set.filter @@ fun w -> Connection.get_con w != con
-      )
+    cons.watches <- Trie.map (del_watches_of_con con) cons.watches
   )
 
-let del_anonymous cons con spec_fds =
+(* Reallocate the poll_status array, update indices pointing to it *)
+let resize_anonymous cons spec_fds =
+  cons.poll_status <-
+    Array.make
+      (Hashtbl.length cons.anonymous + List.length spec_fds)
+      (default_poll_status ())
+  (* TODO: Work around an unnecessary allocation here *) ;
+
+  (* Keep the special fds at the beginning *)
+  let i =
+    List.fold_left
+      (fun index fd ->
+        cons.poll_status.(index) <- (fd, spec_poll_status ()) ;
+        index + 1
+      )
+      0 spec_fds
+  in
+
+  let _ =
+    Hashtbl.fold
+      (fun key (con, _) i ->
+        Hashtbl.replace cons.anonymous key (con, i) ;
+        (* SAFETY: con.poll_status is always Some for anonymous connections *)
+        cons.poll_status.(i) <-
+          (Connection.get_fd con, Option.get con.poll_status) ;
+        i + 1
+      )
+      cons.anonymous i
+  in
+  ()
+
+(* SAFETY: If del_anonymous is called with resize=false, then resize_anonymous
+   must be called to shrink the array to avoid runaway memory usage *)
+let del_anonymous ?(resize = true) cons con spec_fds =
   try
     Hashtbl.remove cons.anonymous (Connection.get_fd con) ;
-    (* Reallocate the poll_status array, update indices pointing to it *)
-    cons.poll_status <-
-      Array.make
-        (Hashtbl.length cons.anonymous + List.length spec_fds)
-        (default_poll_status ())
-    (* TODO: Work around an unnecessary allocation here *) ;
+    del_watches cons con ;
+    Connection.close con ;
 
-    (* Keep the special fds at the beginning *)
-    let i =
-      List.fold_left
-        (fun index fd ->
-          cons.poll_status.(index) <- (fd, spec_poll_status ()) ;
-          index + 1
-        )
-        0 spec_fds
-    in
-
-    let _ =
-      Hashtbl.fold
-        (fun key (con, _) i ->
-          Hashtbl.replace cons.anonymous key (con, i) ;
-          (* SAFETY: con.poll_status is always Some for anonymous connections *)
-          cons.poll_status.(i) <-
-            (Connection.get_fd con, Option.get con.poll_status) ;
-          i + 1
-        )
-        cons.anonymous i
-    in
-
-    del_watches cons con ; Connection.close con
+    (* Several connections can be removed one after another. There is no point
+       in resizing the array after each one. Wait for the last one, then resize.
+       cons.anonymous Hashtbl is still correct without resizing *)
+    if resize then
+      resize_anonymous cons spec_fds
   with exn -> debug "del anonymous %s" (Printexc.to_string exn)
 
 let del_domain cons id =
@@ -210,11 +215,7 @@ let fire_watches ?oldroot source root cons path recurse =
   if recurse then
     Trie.iter fire_rec (Trie.sub cons.watches key)
 
-let send_watchevents cons con =
-  cons.has_pending_watchevents <-
-    cons.has_pending_watchevents
-    |> Connection.Watch.Set.filter Connection.Watch.flush_events ;
-  Connection.source_flush_watchevents con
+let send_watchevents con = Connection.source_flush_watchevents con
 
 let fire_spec_watches root cons specpath =
   let source = find_domain cons 0 in
@@ -268,25 +269,6 @@ let debug cons =
       cons.domains []
   in
   String.concat "" (domains @ anonymous)
-
-let debug_watchevents cons con =
-  (* == (physical equality)
-     	   has to be used here because w.con.xb.backend might contain a [unit->unit] value causing regular
-     	   comparison to fail due to having a 'functional value' which cannot be compared.
-  *)
-  let s =
-    cons.has_pending_watchevents
-    |> Connection.Watch.Set.filter (fun w -> w.con == con)
-  in
-  let pending =
-    s
-    |> Connection.Watch.Set.elements
-    |> List.map (fun w -> Connection.Watch.pending_watchevents w)
-    |> List.fold_left ( + ) 0
-  in
-  Printf.sprintf "Watches with pending events: %d, pending events total: %d"
-    (Connection.Watch.Set.cardinal s)
-    pending
 
 let filter ~f cons =
   let fold _ v acc = if f v then v :: acc else acc in
