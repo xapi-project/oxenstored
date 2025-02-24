@@ -17,6 +17,15 @@
 open Printf
 open Stdext
 
+exception ConversionFailed of string
+
+let int_of_string_exn x =
+  match int_of_string_opt x with
+  | Some i ->
+      i
+  | None ->
+      raise (ConversionFailed x)
+
 (* lists utils *)
 let filter_out filter l = List.filter (fun x -> not (List.mem x filter)) l
 
@@ -52,7 +61,7 @@ let hexify s =
 
 let unhexify hs =
   let char_of_hexseq seq0 seq1 =
-    Char.chr (int_of_string (sprintf "0x%c%c" seq0 seq1))
+    Char.chr (int_of_string_exn (sprintf "0x%c%c" seq0 seq1))
   in
   let b = Bytes.create (String.length hs / 2) in
   for i = 0 to Bytes.length b - 1 do
@@ -81,7 +90,7 @@ let read_file_single_integer filename =
   let buf = Bytes.make 20 '\000' in
   let sz = Unix.read fd buf 0 20 in
   Unix.close fd ;
-  int_of_string (Bytes.sub_string buf 0 sz)
+  int_of_string_exn (Bytes.sub_string buf 0 sz)
 
 (* @path may be guest data and needs its length validating.  @connection_path
  * is generated locally in xenstored and always of the form "/local/domain/$N/" *)

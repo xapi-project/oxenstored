@@ -3,8 +3,6 @@
  (name xenstored)
  (modules
   (:standard \ syslog configure))
- (flags
-  (:standard -w -52))
  (libraries unix xenbus xen-evtchn xen-evtchn-unix-minimal
             xengnt xenmmap syslog xsd_glue systemd
             dune-site dune-site.plugins))

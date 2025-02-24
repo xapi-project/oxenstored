@@ -282,7 +282,7 @@ let do_debug con t _domains cons data =
           Logging.xb_op ~tid:0 ~ty:Xenbus.Xb.Op.Debug ~con:"=======>" msg ;
           None
       | "quota" :: domid :: _ ->
-          let domid = int_of_string domid in
+          let domid = Utils.int_of_string_exn domid in
           let quota = Store.get_quota t.Transaction.store in
           Some (Quota.to_string quota domid ^ "\000")
       | "watches" :: _ ->
@@ -293,7 +293,7 @@ let do_debug con t _domains cons data =
       | "trim" :: _ ->
           History.trim () ; Some "trimmed"
       | "txn" :: domid :: _ ->
-          let domid = int_of_string domid in
+          let domid = Utils.int_of_string_exn domid in
           let con = Connections.find_domain cons domid in
           let b = Buffer.create 128 in
           let () =
@@ -306,7 +306,7 @@ let do_debug con t _domains cons data =
           in
           Some (Buffer.contents b)
       | "xenbus" :: domid :: _ ->
-          let domid = int_of_string domid in
+          let domid = Utils.int_of_string_exn domid in
           let con = Connections.find_domain cons domid in
           let s =
             Printf.sprintf
@@ -323,7 +323,7 @@ let do_debug con t _domains cons data =
           in
           Some s
       | "mfn" :: domid :: _ ->
-          let domid = int_of_string domid in
+          let domid = Utils.int_of_string_exn domid in
           let con = Connections.find_domain cons domid in
           may
             (fun dom -> Printf.sprintf "%nd\000" (Domain.get_mfn dom))
@@ -351,7 +351,9 @@ let do_directory_part con t _domains _cons data =
     let args = split (Some 3) '\000' data in
     match args with
     | path :: offset :: _ ->
-        (Store.Path.create path (Connection.get_path con), int_of_string offset)
+        ( Store.Path.create path (Connection.get_path con)
+        , Utils.int_of_string_exn offset
+        )
     | _ ->
         raise Invalid_Cmd_Args
   in
@@ -459,7 +461,7 @@ let do_isintroduced con _t domains _cons data =
   let domid =
     match split None '\000' data with
     | domid :: _ ->
-        int_of_string domid
+        Utils.int_of_string_exn domid
     | _ ->
         raise Invalid_Cmd_Args
   in
@@ -592,7 +594,7 @@ let input_handle_error ~cons ~doms ~fct ~con ~t ~req =
       reply_error "E2BIG"
   | Quota.Transaction_opened ->
       reply_error "EQUOTA"
-  | Failure "int_of_string" ->
+  | Utils.ConversionFailed _ ->
       reply_error "EINVAL"
   | Define.Unknown_operation ->
       reply_error "ENOSYS"
@@ -777,7 +779,10 @@ let do_introduce con t domains cons data =
   let domid, mfn, remote_port =
     match split None '\000' data with
     | domid :: mfn :: remote_port :: _ ->
-        (int_of_string domid, Nativeint.of_string mfn, int_of_string remote_port)
+        ( Utils.int_of_string_exn domid
+        , Nativeint.of_string mfn
+        , Utils.int_of_string_exn remote_port
+        )
     | _ ->
         raise Invalid_Cmd_Args
   in
@@ -806,7 +811,7 @@ let do_release con t domains cons data =
   let domid =
     match split None '\000' data with
     | [domid; ""] ->
-        int_of_string domid
+        Utils.int_of_string_exn domid
     | _ ->
         raise Invalid_Cmd_Args
   in
@@ -826,7 +831,7 @@ let do_resume con _t domains _cons data =
   let domid =
     match split None '\000' data with
     | domid :: _ ->
-        int_of_string domid
+        Utils.int_of_string_exn domid
     | _ ->
         raise Invalid_Cmd_Args
   in
