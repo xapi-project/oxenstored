@@ -23,10 +23,7 @@
 #include <sys/ioctl.h>
 #include <string.h>
 
-#define XC_WANT_COMPAT_EVTCHN_API
-#include <xenctrl.h>
-#include <xen/xen.h>
-#include <xen/sys/evtchn.h>
+#include <xenevtchn.h>
 
 #define CAML_NAME_SPACE
 #include <caml/mlvalues.h>
@@ -36,10 +33,10 @@
 #include <caml/callback.h>
 #include <caml/fail.h>
 
-#define _H(__h) ((xc_evtchn *)(__h))
+#define _H(__h) ((xenevtchn_handle *)(__h))
 #define XENEVTCHN_NO_CLOEXEC (1 << 0)
 
-xc_evtchn *global_xce = NULL;
+xenevtchn_handle *global_xce = NULL;
 
 CAMLprim value
 stub_evtchn_init (value cloexec)
@@ -51,7 +48,7 @@ stub_evtchn_init (value cloexec)
 
         if (global_xce == NULL)
           {
-                  global_xce = xc_evtchn_open (NULL, flags);
+                  global_xce = xenevtchn_open (NULL, flags);
           }
 
         if (global_xce == NULL)
@@ -66,7 +63,7 @@ stub_evtchn_fd (value xce)
         CAMLparam1 (xce);
         int fd;
 
-        fd = xc_evtchn_fd (_H (xce));
+        fd = xenevtchn_fd (_H (xce));
         if (fd == -1)
           {
                   perror ("xc_evtchn_fd");
@@ -79,7 +76,7 @@ CAMLprim value
 stub_evtchn_notify (value xce, value port)
 {
         CAMLparam2 (xce, port);
-        if (xc_evtchn_notify (_H (xce), Int_val (port)) == -1)
+        if (xenevtchn_notify (_H (xce), Int_val (port)) == -1)
           {
                   perror ("xc_evtchn_notify");
                   caml_failwith (strerror (errno));
@@ -92,9 +89,9 @@ CAMLprim value
 stub_evtchn_bind_interdomain (value xce, value domid, value remote_port)
 {
         CAMLparam3 (xce, domid, remote_port);
-        evtchn_port_or_error_t rc;
+        xenevtchn_port_or_error_t rc;
 
-        rc = xc_evtchn_bind_interdomain (_H (xce), Int_val (domid),
+        rc = xenevtchn_bind_interdomain (_H (xce), Int_val (domid),
                                          Int_val (remote_port));
         if (rc == -1)
           {
@@ -109,9 +106,9 @@ CAMLprim value
 stub_evtchn_alloc_unbound (value xce, value remote_domid)
 {
         CAMLparam2 (xce, remote_domid);
-        evtchn_port_or_error_t rc;
+        xenevtchn_port_or_error_t rc;
 
-        rc = xc_evtchn_bind_unbound_port (_H (xce), Int_val (remote_domid));
+        rc = xenevtchn_bind_unbound_port (_H (xce), Int_val (remote_domid));
         if (rc == -1)
           {
                   perror ("xc_evtchn_bind_unbound_port");
@@ -133,9 +130,9 @@ CAMLprim value
 stub_evtchn_bind_virq (value xce, value virq)
 {
         CAMLparam2 (xce, virq);
-        evtchn_port_or_error_t rc;
+        xenevtchn_port_or_error_t rc;
 
-        rc = xc_evtchn_bind_virq (_H (xce), Int_val (virq));
+        rc = xenevtchn_bind_virq (_H (xce), Int_val (virq));
         if (rc == -1)
           {
                   perror ("xc_evtchn_bind_virq");
@@ -149,7 +146,7 @@ CAMLprim value
 stub_evtchn_unbind (value xce, value port)
 {
         CAMLparam2 (xce, port);
-        if (xc_evtchn_unbind (_H (xce), Int_val (port)) == -1)
+        if (xenevtchn_unbind (_H (xce), Int_val (port)) == -1)
           {
                   perror ("xc_evtchn_unbind");
                   caml_failwith (strerror (errno));
@@ -163,11 +160,11 @@ stub_evtchn_pending (value xce)
 {
         CAMLparam1 (xce);
         CAMLlocal1 (generation);
-        evtchn_port_or_error_t port;
+        xenevtchn_port_or_error_t port;
 
         generation = caml_alloc_tuple (2);
 
-        port = xc_evtchn_pending (_H (xce));
+        port = xenevtchn_pending (_H (xce));
         if (port == -1)
           {
                   perror ("xc_evtchn_pending");
@@ -184,7 +181,7 @@ CAMLprim value
 stub_evtchn_unmask (value xce, value port)
 {
         CAMLparam2 (xce, port);
-        if (xc_evtchn_unmask (_H (xce), Int_val (port)) == -1)
+        if (xenevtchn_unmask (_H (xce), Int_val (port)) == -1)
           {
                   perror ("xc_evtchn_unmask");
                   caml_failwith (strerror (errno));
