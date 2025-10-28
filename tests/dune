@@ -11,7 +11,7 @@
  (name evtchn_unix_mock)
  (modules Unix_activations_minimal)
  (foreign_stubs (language c) (names eventchn_stubs))
- (c_library_flags -L/usr/lib/xen-4.2/lib -lxenctrl)
+ (c_library_flags -lxenctrl)
  (libraries evtchn_mock unix)
  (wrapped false))
 
