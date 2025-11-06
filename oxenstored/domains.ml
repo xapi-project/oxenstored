@@ -38,9 +38,9 @@ let () =
   (* Do not link with the plugin when being tested *)
   if not Testing_status.under_testing then (
     let plugins_dir =
-      Filename.concat Paths.libexec "/ocaml/xsd_glue/xenctrl_plugin/"
+      Filename.concat Paths.libexec "ocaml/xsd_glue/xenctrl_plugin"
     in
-    let filepath = plugins_dir ^ "domain_getinfo_v1.cmxs" in
+    let filepath = Filename.concat plugins_dir "domain_getinfo_v1.cmxs" in
     debug "Trying to load plugin '%s'\n%!" filepath ;
     let list_files = Sys.readdir plugins_dir in
     debug "Directory listing of '%s'\n%!" plugins_dir ;
