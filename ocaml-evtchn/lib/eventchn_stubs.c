@@ -75,7 +75,6 @@ stub_evtchn_init (value cloexec)
 
         if (xce == NULL)
           {
-                  perror (__func__);
                   caml_failwith (strerror (errno));
           }
 
@@ -94,7 +93,6 @@ stub_evtchn_fd (value xce_val)
         fd = xenevtchn_fd (xce);
         if (fd == -1)
           {
-                  perror (__func__);
                   caml_failwith (strerror (errno));
           }
 
@@ -115,7 +113,6 @@ stub_evtchn_notify (value xce_val, value port_val)
 
         if (rc == -1)
           {
-                  perror (__func__);
                   caml_failwith (strerror (errno));
           }
 
@@ -138,7 +135,6 @@ stub_evtchn_bind_interdomain (value xce_val, value domid_val,
 
         if (rc == -1)
           {
-                  perror (__func__);
                   caml_failwith (strerror (errno));
           }
 
@@ -158,7 +154,6 @@ stub_evtchn_alloc_unbound (value xce_val, value remote_domid_val)
         caml_acquire_runtime_system ();
         if (rc == -1)
           {
-                  perror (__func__);
                   caml_failwith (strerror (errno));
           }
 
@@ -186,7 +181,6 @@ stub_evtchn_bind_virq (value xce_val, value virq_val)
         caml_acquire_runtime_system ();
         if (rc == -1)
           {
-                  perror (__func__);
                   caml_failwith (strerror (errno));
           }
 
@@ -206,7 +200,6 @@ stub_evtchn_unbind (value xce_val, value port_val)
         caml_acquire_runtime_system ();
         if (rc == -1)
           {
-                  perror (__func__);
                   caml_failwith (strerror (errno));
           }
 
@@ -228,7 +221,6 @@ stub_evtchn_pending (value xce_val)
         caml_acquire_runtime_system ();
         if (port == -1)
           {
-                  perror (__func__);
                   caml_failwith (strerror (errno));
           }
 
@@ -251,7 +243,6 @@ stub_evtchn_unmask (value xce_val, value port_val)
         caml_acquire_runtime_system ();
         if (rc == -1)
           {
-                  perror (__func__);
                   caml_failwith (strerror (errno));
           }
 
