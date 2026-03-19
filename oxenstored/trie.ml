@@ -68,8 +68,8 @@ let rec map f tree =
   tree
   |> StringMap.map aux
   |> StringMap.filter (fun _ n ->
-         n.Node.value <> None || not (StringMap.is_empty n.Node.children)
-     )
+      n.Node.value <> None || not (StringMap.is_empty n.Node.children)
+  )
 
 let rec fold f tree acc =
   let aux key node accu =

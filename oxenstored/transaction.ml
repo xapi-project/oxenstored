@@ -83,15 +83,21 @@ let test_coalesce oldroot currentroot optpath =
 
 let can_coalesce oldroot currentroot path =
   if !do_coalesce then
-    try test_coalesce oldroot currentroot path with _ -> false
+    try
+      test_coalesce oldroot currentroot path
+    with _ -> false
   else
     false
 
 type ty =
   | No
-  | Full of (int * (* Transaction id *)
-                   Store.t * (* Original store *)
-                             Store.t)
+  | Full of
+      ( int
+      * (* Transaction id *)
+        Store.t
+      * (* Original store *)
+        Store.t
+      )
 (* A pointer to the canonical store: its root changes on each transaction-commit *)
 
 type t = {

@@ -361,7 +361,9 @@ let open_mmap mmap notifyfct ~under_testing =
 
 let close con ~under_testing =
   if not under_testing then
-    match con.backend with
+    match
+      con.backend
+    with
     | Fd backend ->
         Unix.close backend.fd
     | Xenmmap backend ->

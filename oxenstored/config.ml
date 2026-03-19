@@ -65,7 +65,9 @@ let parse_line stream =
     try
       let line = trim_spaces (input_line stream) in
       if String.length line > 0 && line.[0] <> '#' then
-        match to_config line with
+        match
+          to_config line
+        with
         | None ->
             read_filter_line ()
         | Some x ->

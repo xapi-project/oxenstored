@@ -24,7 +24,9 @@ let load_plug fname =
   let fail_with fmt = Printf.ksprintf failwith fmt in
   let fname = Dynlink.adapt_filename fname in
   if Sys.file_exists fname then
-    try Dynlink.loadfile fname with
+    try
+      Dynlink.loadfile fname
+    with
     | Dynlink.Error err as e ->
         error "ERROR loading plugin '%s': %s\n%!" fname
           (Dynlink.error_message err) ;
