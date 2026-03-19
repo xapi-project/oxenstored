@@ -2,6 +2,11 @@ DUNE 	= dune
 JOBS    = $(shell getconf _NPROCESSORS_ONLN)
 PROFILE = release
 
+# K&R style indentation, could use in format target below
+INDENT += -nbad -bap -nbc -br -brs -c33 -cd33 -ncdb -ce -ci4 -cli0
+INDENT += -d0 -di1 -nfc1 -i4 -ip0 -l75 -lp -npcs
+INDENT += -npsl -nsc -nsob
+
 .PHONY: build check test clean format install
 
 build:
