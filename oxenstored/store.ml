@@ -152,7 +152,9 @@ module Path = struct
     else if s = "/" then
       []
     else
-      match String.split '/' s with
+      match
+        String.split '/' s
+      with
       | "" :: path when is_valid path ->
           path
       | _ ->
@@ -216,7 +218,9 @@ module Path = struct
     if path = [] then
       Some rnode
     else
-      try Some (lookup_get rnode path) with Define.Doesnt_exist -> None
+      try
+        Some (lookup_get rnode path)
+      with Define.Doesnt_exist -> None
 
   (* get the deepest existing node for this path, return the node and a flag on the existence of the full path *)
   let rec get_deepest_existing_node node = function

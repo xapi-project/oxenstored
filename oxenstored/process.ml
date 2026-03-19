@@ -232,7 +232,9 @@ module LiveUpdate = struct
   let should_run cons =
     let t = !state in
     if t.pending then (
-      match Connections.prevents_quit cons with
+      match
+        Connections.prevents_quit cons
+      with
       | [] ->
           true
       | _ when Unix.gettimeofday () < t.deadline ->

@@ -433,10 +433,9 @@ let lookup_watch_perm path = function
     try
       Store.Path.apply root path @@ fun parent name ->
       Store.Node.get_perms parent
-      ::
-      ( try [Store.Node.get_perms (Store.Node.find parent name)]
-        with Not_found -> []
-      )
+      :: ( try [Store.Node.get_perms (Store.Node.find parent name)]
+           with Not_found -> []
+        )
     with Define.Invalid_path | Not_found -> []
   )
 
@@ -491,7 +490,9 @@ let fire_single_watch source (oldroot, root) depth watch =
     if watch.path.[0] = '@' then
       true
     else
-      match watch.depth with
+      match
+        watch.depth
+      with
       | None ->
           true
       | Some x when x >= depth - watch.path_depth ->
@@ -523,14 +524,14 @@ let fire_watch source roots watch path depth =
 (* Search for a valid unused transaction id. *)
 let rec valid_transaction_id con proposed_id =
   (*
-	 * Clip proposed_id to the range [1, 0x3ffffffe]
-	 *
-	 * The chosen id must not trucate when written into the uint32_t tx_id
-	 * field, and needs to fit within the positive range of a 31 bit ocaml
-	 * integer to function when compiled as 32bit.
-	 *
-	 * Oxenstored therefore supports only 1 billion open transactions.
-	 *)
+   * Clip proposed_id to the range [1, 0x3ffffffe]
+   *
+   * The chosen id must not trucate when written into the uint32_t tx_id
+   * field, and needs to fit within the positive range of a 31 bit ocaml
+   * integer to function when compiled as 32bit.
+   *
+   * Oxenstored therefore supports only 1 billion open transactions.
+   *)
   let id =
     if proposed_id <= 0 || proposed_id >= 0x3fffffff then 1 else proposed_id
   in
