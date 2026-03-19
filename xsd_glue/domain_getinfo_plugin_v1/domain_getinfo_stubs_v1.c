@@ -44,7 +44,7 @@ static struct custom_operations xsd_glue_xenctrl_ops = {
 };
 
 CAMLnoreturn_start static void CAMLnoreturn_end
-xsd_glue_failwith (xc_interface * xch, const char *func, unsigned int line)
+xsd_glue_failwith (xc_interface *xch, const char *func, unsigned int line)
 {
         CAMLparam0 ();
         CAMLlocal1 (msg);
@@ -99,7 +99,7 @@ stub_xsd_glue_xc_interface_open (value unit)
 }
 
 static value
-xsd_glue_alloc_domaininfo (const xc_domaininfo_t * info)
+xsd_glue_alloc_domaininfo (const xc_domaininfo_t *info)
 {
         CAMLparam0 ();
         CAMLlocal1 (result);
