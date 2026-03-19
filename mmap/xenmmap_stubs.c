@@ -30,6 +30,7 @@
 #include <caml/fail.h>
 #include <caml/callback.h>
 #include <caml/unixsupport.h>
+#include <caml/threads.h>
 
 #define Intf_val(a) ((struct mmap_interface *)Data_abstract_val(a))
 #define Wsize_bsize_round(n) (Wsize_bsize( (n) + sizeof(value) - 1 ))
@@ -91,8 +92,13 @@ stub_mmap_init (value fd, value pflag, value mflag, value len, value offset)
                 caml_invalid_argument ("negative offset");
         length = Int_val (len);
 
-        addr = mmap (NULL, length, c_pflag, c_mflag, Int_val (fd),
-                     Int_val (offset));
+        int c_fd = Int_val (fd);
+        int c_offset = Int_val (offset);
+
+        caml_release_runtime_system ();
+        addr = mmap (NULL, length, c_pflag, c_mflag, c_fd, c_offset);
+        caml_acquire_runtime_system ();
+
         if (MAP_FAILED == addr)
                 uerror ("mmap", Nothing);
 
@@ -104,9 +110,16 @@ CAMLprim value
 stub_mmap_final (value intf)
 {
         CAMLparam1 (intf);
+        void *addr = Intf_val (intf)->addr;
 
-        if (Intf_val (intf)->addr != MAP_FAILED)
-                munmap (Intf_val (intf)->addr, Intf_val (intf)->len);
+        if (addr != MAP_FAILED)
+          {
+                  int len = Intf_val (intf)->len;
+                  caml_release_runtime_system ();
+                  munmap (addr, len);
+                  caml_acquire_runtime_system ();
+          }
+
         Intf_val (intf)->addr = MAP_FAILED;
 
         CAMLreturn (Val_unit);
