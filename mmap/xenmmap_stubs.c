@@ -90,10 +90,10 @@ stub_mmap_init (value fd, value pflag, value mflag, value len, value offset)
                 caml_invalid_argument ("negative size");
         if (Int_val (offset) < 0)
                 caml_invalid_argument ("negative offset");
-        length = Int_val (len);
+        length = Long_val (len);
 
         int c_fd = Int_val (fd);
-        int c_offset = Int_val (offset);
+        size_t c_offset = Long_val (offset);
 
         caml_release_runtime_system ();
         addr = mmap (NULL, length, c_pflag, c_mflag, c_fd, c_offset);
