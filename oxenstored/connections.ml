@@ -178,7 +178,9 @@ let add_watch cons con path token depth =
   ( if is_special_watch then
       (* No depth can be specified for @releaseDomain/domid watches.
          Only depth=1 can be specified for other special watches *)
-      match depth with
+        match
+          depth
+        with
       | Some _ when String.starts_with ~prefix:"@releaseDomain/" apath ->
           raise
             (Invalid_argument

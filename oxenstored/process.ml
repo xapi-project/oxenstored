@@ -232,7 +232,9 @@ module LiveUpdate = struct
   let should_run cons =
     let t = !state in
     if t.pending then (
-      match Connections.prevents_quit cons with
+      match
+        Connections.prevents_quit cons
+      with
       | [] ->
           true
       | _ when Unix.gettimeofday () < t.deadline ->
@@ -792,8 +794,9 @@ let do_introduce con t domains cons data =
     if Domains.exist domains domid then (
       let edom = Domains.find domains domid in
       if Domain.get_mfn edom = mfn && Connections.find_domain cons domid != con
-      then (* Use XS_INTRODUCE for recreating the xenbus event-channel. *)
+      then
         Domain.rebind_evtchn edom remote_port ;
+      (* Use XS_INTRODUCE for recreating the xenbus event-channel. *)
       edom
     ) else
       try

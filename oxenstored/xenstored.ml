@@ -326,7 +326,8 @@ module DB = struct
     Event.dump evtchn chan ;
 
     (* dump connections related to domains: domid, mfn, eventchn port/ sockets, and watches *)
-    Connections.iter cons (fun con -> Connection.dump con chan) ;
+    Connections.iter cons (fun con -> Connection.dump con chan
+    ) ;
 
     (* dump the store *)
     Store.dump_fct store (fun path node ->
@@ -660,7 +661,9 @@ let main () =
     let elapsed = Unix.gettimeofday () -. now in
     debug "periodic_ops took %F seconds." elapsed ;
     ( if !quit then
-        match Connections.prevents_quit cons with
+        match
+          Connections.prevents_quit cons
+        with
         | [] ->
             ()
         | domains ->
