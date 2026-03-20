@@ -886,6 +886,8 @@ let retain_op_in_history ty =
   | Xenbus.Xb.Op.Rm
   | Xenbus.Xb.Op.Setperms ->
       true
+  | Xenbus.Xb.Op.Get_feature
+  | Xenbus.Xb.Op.Set_feature
   | Xenbus.Xb.Op.Debug
   | Xenbus.Xb.Op.Directory
   | Xenbus.Xb.Op.Directory_part

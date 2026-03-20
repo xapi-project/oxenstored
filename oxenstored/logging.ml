@@ -323,6 +323,10 @@ let string_of_access_type = function
         "error    "
     | Xenbus.Xb.Op.Watchevent ->
         "w event  "
+    | Xenbus.Xb.Op.Get_feature ->
+        "get_feature "
+    | Xenbus.Xb.Op.Set_feature ->
+        "set_feature "
     | Xenbus.Xb.Op.Invalid ->
         "invalid  "
   )
