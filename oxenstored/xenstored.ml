@@ -439,7 +439,7 @@ let main () =
         (Unix.handle_unix_error Utils.create_unix_socket Define.xs_daemon_socket)
   in
 
-  if (not Testing_status.under_testing) && cf.daemonize && not cf.live_reload
+  if (not !Testing_status.under_testing) && cf.daemonize && not cf.live_reload
   then
     Unixext.daemonize ()
   else
@@ -719,7 +719,7 @@ let main () =
 
     if cfds <> [] || wset <> [] then
       process_connection_fds store cons domains cfds wset spec_fds ;
-    if not Testing_status.under_testing then (
+    if not !Testing_status.under_testing then (
       ( if timeout <> 0. then
           let now = Unix.gettimeofday () in
           if now > !period_start +. period_ops_interval then (
@@ -732,7 +732,7 @@ let main () =
     )
   in
 
-  if not Testing_status.under_testing then (
+  if not !Testing_status.under_testing then (
     Systemd.sd_notify_ready () ;
     let live_update = ref false in
     while not (!quit && Connections.prevents_quit cons = []) do
