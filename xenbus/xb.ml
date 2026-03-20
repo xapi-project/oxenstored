@@ -352,11 +352,19 @@ let newcon ~capacity backend =
 let open_fd fd = newcon (Fd {fd})
 
 let open_mmap mmap notifyfct ~under_testing =
-  (* Advertise XENSTORE_SERVER_FEATURE_RECONNECTION *)
-  if not under_testing then
-    Xs_ring.set_server_features
-      (Xenmmap.to_interface mmap)
-      (Xs_ring.Server_features.singleton Xs_ring.Server_feature.Reconnection) ;
+  (* Advertise
+     XENSTORE_SERVER_FEATURE_RECONNECTION |
+     XENSTORE_SERVER_FEATURE_WATCHDEPTH
+     *)
+  ( if not under_testing then
+      Xs_ring.(
+        set_server_features
+          (Xenmmap.to_interface mmap)
+          (Server_features.of_list
+             [Server_feature.Reconnection; Server_feature.Watch_depth]
+          )
+      )
+  ) ;
   newcon (Xenmmap {mmap; eventchn_notify= notifyfct; work_again= false})
 
 let close con ~under_testing =
