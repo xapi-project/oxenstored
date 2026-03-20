@@ -37,6 +37,8 @@ type operation =
   | Set_target
   | Reset_watches
   | Directory_part
+  | Get_feature
+  | Set_feature
   | Invalid
 
 (* See xs_wire.h for the required order *)
@@ -65,6 +67,8 @@ let operation_c_mapping =
    ; Invalid
    ; Reset_watches
    ; Directory_part
+   ; Get_feature
+   ; Set_feature
   |]
 
 let size = Array.length operation_c_mapping
@@ -131,5 +135,9 @@ let to_string ty =
       "RESET_WATCHES"
   | Directory_part ->
       "DIRECTORY_PART"
+  | Get_feature ->
+      "GET_FEATURE"
+  | Set_feature ->
+      "SET_FEATURE"
   | Invalid ->
       "INVALID"

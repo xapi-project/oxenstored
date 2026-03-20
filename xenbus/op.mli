@@ -21,6 +21,8 @@ type operation =
   | Set_target
   | Reset_watches
   | Directory_part
+  | Get_feature
+  | Set_feature
   | Invalid
 
 val operation_c_mapping : operation array

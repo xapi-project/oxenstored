@@ -38,7 +38,7 @@ let load_plug fname =
 
 let () =
   (* Do not link with the plugin when being tested *)
-  if not Testing_status.under_testing then (
+  if not !Testing_status.under_testing then (
     let plugins_dir =
       Filename.concat Paths.libexec "ocaml/xsd_glue/xenctrl_plugin"
     in

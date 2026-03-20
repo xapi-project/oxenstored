@@ -62,8 +62,8 @@ let add_anonymous cons fd =
 let add_domain cons dom =
   let capacity = get_capacity () in
   let xbcon =
-    Xenbus.Xb.open_mmap ~under_testing:Testing_status.under_testing ~capacity
-      (Domain.get_interface dom) (fun () -> Domain.notify dom
+    Xenbus.Xb.open_mmap ~under_testing:!Testing_status.under_testing
+      ~capacity (Domain.get_interface dom) (fun () -> Domain.notify dom
     )
   in
   let con = Connection.create xbcon (Some dom) in

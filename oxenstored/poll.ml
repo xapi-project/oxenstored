@@ -56,5 +56,5 @@ let poll_select fdarr timeout =
       fdarr r
 
 let () =
-  if not Testing_status.under_testing then
+  if not !Testing_status.under_testing then
     set_fd_limit (get_sys_fs_nr_open ())

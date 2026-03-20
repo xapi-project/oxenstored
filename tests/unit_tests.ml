@@ -916,8 +916,49 @@ let test_quota_maxent () =
     ; (dom1, none, (Write, ["b"; "hello"]), (Error, ["EQUOTA"]))
     ]
 
+let feature_testable =
+  Alcotest.testable
+    (Fmt.of_to_string Xenbus.Xs_ring.Server_feature.to_string)
+    Stdlib.( = )
+
+let check_features (con : Connection.t) expected =
+  let open Xenbus.Xs_ring in
+  let d = Option.get (Connection.get_domain con) in
+  let x = get_server_features (Xenmmap.to_interface (Domain.get_interface d)) in
+  Alcotest.(check' (seq @@ feature_testable))
+    ~msg:"Verify advertised features on xenstore ring"
+    ~actual:(Server_features.to_seq x) ~expected:(List.to_seq expected)
+
+let test_feature_advertisement () =
+  let _store, doms, cons = initialize () in
+  (* Turn off under_testing flag here to trigger the setting of feature bitmap *)
+  Testing_status.under_testing := false ;
+
+  let dom0 = create_dom0_conn cons doms in
+  let dom1 = create_domU_conn cons doms 1 in
+  check_features dom0 Xenbus.Xs_ring.Server_feature.[Reconnection; Watch_depth] ;
+  check_features dom1 Xenbus.Xs_ring.Server_feature.[Reconnection; Watch_depth] ;
+  Testing_status.under_testing := true
+
+let test_get_feature () =
+  let store, doms, cons = initialize () in
+  (* Turn off under_testing flag here to trigger the setting of feature bitmap *)
+  Testing_status.under_testing := false ;
+
+  let dom0 = create_dom0_conn cons doms in
+  let dom1 = create_domU_conn cons doms 1 in
+  run store cons doms
+    [
+      (dom0, none, (Get_feature, ["0"]), (Error, ["ENOSYS"]))
+    ; (dom1, none, (Get_feature, ["1"]), (Error, ["ENOSYS"]))
+    ; (dom1, none, (Set_feature, ["0"; "1"]), (Error, ["ENOSYS"]))
+    ] ;
+  check_features dom0 Xenbus.Xs_ring.Server_feature.[Reconnection; Watch_depth] ;
+  check_features dom1 Xenbus.Xs_ring.Server_feature.[Reconnection; Watch_depth] ;
+  Testing_status.under_testing := true
+
 let () =
-  Alcotest.run "Test RRD library"
+  Alcotest.run "Test oxenstored"
     [
       ( "Basic tests"
       , [
@@ -970,6 +1011,12 @@ let () =
         ; ("test_quota_transaction", `Quick, test_quota_transaction)
         ; ("test_quota_maxsize", `Quick, test_quota_maxsize)
         ; ("test_quota_maxent", `Quick, test_quota_maxent)
+        ]
+      )
+    ; ( "Features tests"
+      , [
+          ("test_feature_advertisement", `Quick, test_feature_advertisement)
+        ; ("test_get_feature", `Quick, test_get_feature)
         ]
       )
     ]

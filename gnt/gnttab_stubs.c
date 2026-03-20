@@ -32,6 +32,8 @@
 #include <caml/callback.h>
 #include <caml/bigarray.h>
 
+#include <xen/io/xs_wire.h>
+
 #include "xengnttab.h"
 #include "mmap_stubs.h"
 
@@ -57,14 +59,25 @@ stub_gnttab_interface_open (void)
         CAMLreturn (result);
 }
 
-/* Only called in tests, returns a unit that poses as any particular type on
- * OCaml side - kind of like an unsafe cast from nullptr */
+/* Only called in tests, returns a mmap_interface allocated without xen */
 CAMLprim value
 unsafe_stub (value unit)
 {
+#define Intf_val(a) ((struct mmap_interface *)Data_abstract_val(a))
+#define Wsize_bsize_round(n) (Wsize_bsize( (n) + sizeof(value) - 1 ))
+
         CAMLparam1 (unit);
+        CAMLlocal1 (result);
+
         assert (geteuid () != 0);
-        CAMLreturn (Val_unit);
+
+        struct xenstore_domain_interface *addr = calloc (1, 4096);
+
+        result = caml_alloc (Wsize_bsize_round
+                             (sizeof (struct mmap_interface)), Abstract_tag);
+        Intf_val (result)->addr = addr;
+
+        CAMLreturn (result);
 }
 
 CAMLprim value
