@@ -940,6 +940,23 @@ let test_feature_advertisement () =
   check_features dom1 Xenbus.Xs_ring.Server_feature.[Reconnection; Watch_depth] ;
   Testing_status.under_testing := true
 
+let test_get_feature () =
+  let store, doms, cons = initialize () in
+  (* Turn off under_testing flag here to trigger the setting of feature bitmap *)
+  Testing_status.under_testing := false ;
+
+  let dom0 = create_dom0_conn cons doms in
+  let dom1 = create_domU_conn cons doms 1 in
+  run store cons doms
+    [
+      (dom0, none, (Get_feature, ["0"]), (Error, ["ENOSYS"]))
+    ; (dom1, none, (Get_feature, ["1"]), (Error, ["ENOSYS"]))
+    ; (dom1, none, (Set_feature, ["0"; "1"]), (Error, ["ENOSYS"]))
+    ] ;
+  check_features dom0 Xenbus.Xs_ring.Server_feature.[Reconnection; Watch_depth] ;
+  check_features dom1 Xenbus.Xs_ring.Server_feature.[Reconnection; Watch_depth] ;
+  Testing_status.under_testing := true
+
 let () =
   Alcotest.run "Test oxenstored"
     [
@@ -997,6 +1014,9 @@ let () =
         ]
       )
     ; ( "Features tests"
-      , [("test_feature_advertisement", `Quick, test_feature_advertisement)]
+      , [
+          ("test_feature_advertisement", `Quick, test_feature_advertisement)
+        ; ("test_get_feature", `Quick, test_get_feature)
+        ]
       )
     ]
