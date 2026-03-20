@@ -14,13 +14,56 @@
  * GNU Lesser General Public License for more details.
  *)
 
-module Server_feature = struct type t = Reconnection end
+module Server_feature = struct
+  type t = Reconnection | Error_indicator | Watch_depth
+
+  (* See xenstore-ring.txt for the required order *)
+  let bit_mapping = [|Reconnection; Error_indicator; Watch_depth|]
+
+  let bitmap_size = Array.length bit_mapping
+
+  (* See xenstore-ring.txt for bit numbers *)
+  let feature_to_bit = function
+    | Reconnection ->
+        0
+    | Error_indicator ->
+        1
+    | Watch_depth ->
+        2
+
+  let to_string = function
+    | Reconnection ->
+        "Reconnection"
+    | Error_indicator ->
+        "Error_indicator"
+    | Watch_depth ->
+        "Watch_depth"
+end
 
 module Server_features = Set.Make (struct
   type t = Server_feature.t
 
   let compare = compare
 end)
+
+(* Set of features from bitmask *)
+let of_cval n =
+  let features = ref Server_features.empty in
+  for i = 0 to Server_feature.bitmap_size - 1 do
+    if (n lsr i) land 1 = 1 then
+      let feature = Server_feature.bit_mapping.(i) in
+      features := Server_features.add feature !features
+  done ;
+  !features
+
+(* Bitmask from set of features *)
+let to_cval features =
+  Server_features.fold
+    (fun feature bitmap ->
+      let i = Server_feature.feature_to_bit feature in
+      bitmap lor (1 lsl i)
+    )
+    features 0
 
 external read : Xenmmap.mmap_interface -> bytes -> int -> int
   = "ml_interface_read"
@@ -37,16 +80,11 @@ external _internal_get_server_features : Xenmmap.mmap_interface -> int
 [@@noalloc]
 
 let get_server_features mmap =
-  (* NB only one feature currently defined above *)
   let x = _internal_get_server_features mmap in
-  if x = 0 then
-    Server_features.empty
-  else
-    Server_features.singleton Server_feature.Reconnection
+  of_cval x
 
 let set_server_features mmap set =
-  (* NB only one feature currently defined above *)
-  let x = if set = Server_features.empty then 0 else 1 in
+  let x = to_cval set in
   _internal_set_server_features mmap x
 
 external close : Xenmmap.mmap_interface -> unit = "ml_interface_close"
