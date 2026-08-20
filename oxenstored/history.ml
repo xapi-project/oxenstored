@@ -41,10 +41,6 @@ let end_transaction txn con tid commit =
   let success = Connection.end_transaction con tid commit in
   trim ~txn () ; success
 
-let reconnect con =
-  trim () ;
-  Connection.do_reconnect con
-
 let push (x : history_record) =
   let dom = x.con.Connection.dom in
   match dom with

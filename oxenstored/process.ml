@@ -477,6 +477,13 @@ let do_reset_watches con _t _domains cons _data =
   Connections.del_watches cons con ;
   Connection.del_transactions con
 
+let do_reconnect cons con =
+  let domstr = Connection.get_domstr con in
+  info "%s requests a reconnect" domstr ;
+  History.trim () ;
+  Connection.do_reconnect con ;
+  info "%s reconnection complete" domstr
+
 (* only in >= xen3.3                                                                                    *)
 let do_set_target con _t _domains cons data =
   if not (Connection.is_dom0 con) then
@@ -976,10 +983,7 @@ let do_input store cons doms con =
         None
     with
     | Xenbus.Xb.Reconnect ->
-        info "%s requests a reconnect" (Connection.get_domstr con) ;
-        History.reconnect con ;
-        info "%s reconnection complete" (Connection.get_domstr con) ;
-        None
+        do_reconnect cons con ; None
     | Invalid_argument exp | Failure exp ->
         error "caught exception %s" exp ;
         error "got a bad client %s" (sprintf "%-8s" (Connection.get_domstr con)) ;
@@ -1002,7 +1006,7 @@ let do_input store cons doms con =
       write_access_log ~ty ~tid ~con:(Connection.get_domstr con) ~data ;
       Connection.incr_ops con
 
-let do_output _store _cons _doms con =
+let do_output _store cons _doms con =
   Connection.source_flush_watchevents con ;
   if Connection.has_output con then (
     ( if Connection.has_new_output con then
@@ -1015,8 +1019,5 @@ let do_output _store _cons _doms con =
         write_answer_log ~ty ~tid ~con:(Connection.get_domstr con) ~data
     ) ;
     try ignore (Connection.do_output con)
-    with Xenbus.Xb.Reconnect ->
-      info "%s requests a reconnect" (Connection.get_domstr con) ;
-      History.reconnect con ;
-      info "%s reconnection complete" (Connection.get_domstr con)
+    with Xenbus.Xb.Reconnect -> do_reconnect cons con
   )
